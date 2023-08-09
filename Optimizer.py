@@ -14,7 +14,7 @@ def process_csv(csv_file, optimize_column=None, locked_golfers=None):
         values = [float(value.replace(',', '').replace('$', '')) if isinstance(value, str) else float(value) for value
                   in data['$/Event'].tolist()]
 
-    owgr_values = [int(float(value)) for value in data['OWGR'].tolist()]
+    owgr_values = [int(float(value) * 100) for value in data['OWGR'].tolist()]
 
     # Create the model
     model = cp_model.CpModel()
@@ -22,25 +22,32 @@ def process_csv(csv_file, optimize_column=None, locked_golfers=None):
     # Create a variable for each golfer
     x = [model.NewBoolVar(golfer) for golfer in data['Golfer']]
 
-    # Constraint: Total OWGR <= 30
-    model.Add(sum(x[i] * owgr_values[i] for i in range(len(x))) <= 30)
-
-    # Constraint: Select up to 10 golfers
-    model.Add(sum(x) <= 10)
-
-    # Constraint: Select at least 1 golfer
-    model.Add(sum(x) >= 8)
-
-    # Constraint: Lock in specified golfers
-    # Constraint: Lock in specified golfers
+    # Handle locked golfers
+    locked_owgr = 0
+    locked_count = 0
     if locked_golfers:
         golfer_list = [g.strip() for g in data['Golfer'].tolist()]  # Stripping whitespace
         for golfer in locked_golfers:
             if golfer in golfer_list:
                 golfer_index = golfer_list.index(golfer)
+                print(f"OWGR for {golfer}: {owgr_values[golfer_index]}")  # Print OWGR for each locked golfer
                 model.Add(x[golfer_index] == 1)
+                locked_owgr += int(float(data['OWGR'].iloc[golfer_index]) * 100)
+                locked_count += 1
             else:
                 print(f"Warning: Golfer '{golfer}' not found in the CSV file.")
+
+    print(f"Locked OWGR: {locked_owgr}")
+    print(f"Locked Count: {locked_count}")
+
+    # Constraint: Total OWGR <= (30 - locked_owgr)
+    model.Add(sum(x[i] * owgr_values[i] for i in range(len(x))) + locked_owgr <= 3000)
+
+    # Constraint: Select up to (10 - locked_count) golfers
+    model.Add(sum(x) <= (10 - locked_count))
+
+    # Constraint: Select at least 6 golfers
+    # model.Add(sum(x) >= (6 - locked_count))
 
     # Objective: Minimize the specified column if optimizing for odds, otherwise maximize
     if optimize_column:
@@ -64,7 +71,7 @@ def process_csv(csv_file, optimize_column=None, locked_golfers=None):
     print("\n" + "=" * 50 + "\n")
 
 
-locked_golfers = ['Jon Rahm', 'Sepp Straka']
+locked_golfers = ['Jon Rahm', 'Sepp Straka', 'Emiliano Grillo']
 # Example usage
 csv_files = [
     'Last10All-StJude.csv',
