@@ -6,7 +6,8 @@ def process_dk_csv(csv_file, locked_golfers=None, total_golfers=10):
     # Load the data
     data = pd.read_csv(csv_file)
     data.columns = data.columns.str.strip()
-    print(data['OWGR'].iloc[11])
+
+
 
     # Sort locked_golfers by index in descending order
     locked_golfers_sorted = sorted(locked_golfers,
@@ -54,7 +55,7 @@ def process_dk_csv(csv_file, locked_golfers=None, total_golfers=10):
     model.Add(sum(x[i] * owgr_values[i] for i in range(len(x))) <= free_owgr)
 
     # Constraint: Select up to (10 - num_locked) golfers
-    model.Add(sum(x) <= free_picks)
+    model.Add(sum(x) == free_picks)
 
     # Objective: Maximize DK value (including locked golfers)
     model.Maximize(sum(x[i] * values[i] for i in range(len(x))) + locked_dk_value)
@@ -74,7 +75,7 @@ def process_dk_csv(csv_file, locked_golfers=None, total_golfers=10):
         selected_owgr = 0
         for i in range(len(x)):
             if solver.Value(x[i]) == 1:
-                print(data['Golfer'].iloc[i], data['OWGR'].iloc[i])
+                print(data['Golfer'].iloc[i], data['DKVA'].iloc[i])
                 selected_owgr += int(float(data['OWGR'].iloc[i]) * 100)
         print("Total OWGR (including locked):", selected_owgr + locked_owgr)
     else:
@@ -83,9 +84,9 @@ def process_dk_csv(csv_file, locked_golfers=None, total_golfers=10):
 
 
 # Add the names of the golfers you want  to lock
-locked_golfers = ['Tyrrell Hatton', 'Sam Burns', 'Jon Rahm', 'Sepp Straka', 'Wyndham Clark']
+locked_golfers = []
 
-csv_files = ['DK_prices.csv']
+csv_files = ['DraftKingsBMW.csv']
 
 for file_path in csv_files:
-    process_dk_csv(file_path, locked_golfers, 10)
+    process_dk_csv(file_path, locked_golfers, 6)
